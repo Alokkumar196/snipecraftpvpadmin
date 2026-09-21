@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#07050D">
+<title>SnipeCraft Admin | Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230D0817'/%3E%3Crect x='6' y='6' width='20' height='20' rx='3' fill='%237C3AED'/%3E%3Crect x='11' y='11' width='10' height='10' rx='2' fill='%23C084FC'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/admin.css">
+<link rel="stylesheet" href="css/responsive.css">
+</head>
+<body class="admin-shell-body">
+
+<!-- Loading splash -->
+<div id="boot" class="boot" role="status" aria-live="polite">
+  <span class="boot__spinner" aria-hidden="true"></span>
+  <p class="boot__text">Authenticating…</p>
+</div>
+
+<!-- Denied -->
+<section id="denied" class="auth-shell" hidden>
+  <div class="auth-card">
+    <p class="auth-eyebrow">Access Denied</p>
+    <h1 class="auth-title">Not An Admin</h1>
+    <p class="auth-sub">Your account is signed in, but it isn't listed under <code>admins/</code> with <code>status: "active"</code>. Contact the project owner.</p>
+    <div class="auth-actions">
+      <button id="deniedLogout" class="btn btn--primary btn--lg" type="button">Sign Out</button>
+    </div>
+  </div>
+</section>
+
+<!-- Shell -->
+<div id="shell" class="shell" hidden>
+
+  <aside class="sidebar" aria-label="Admin navigation">
+    <div class="sidebar__brand">
+      <span class="auth-brand__mark" aria-hidden="true"></span>
+      <div>
+        <strong>SNIPECRAFT</strong>
+        <small>Admin Panel</small>
+      </div>
+    </div>
+
+    <nav class="sidebar__nav">
+      <button type="button" class="nav-item is-active" data-section="dashboard">
+        <span aria-hidden="true">◈</span><span>Dashboard</span>
+      </button>
+      <button type="button" class="nav-item" data-section="registrations">
+        <span aria-hidden="true">✚</span><span>Registrations</span>
+      </button>
+      <button type="button" class="nav-item" data-section="staff">
+        <span aria-hidden="true">★</span><span>Staff</span>
+      </button>
+      <button type="button" class="nav-item" data-section="rules">
+        <span aria-hidden="true">§</span><span>Rules</span>
+      </button>
+      <button type="button" class="nav-item" data-section="event">
+        <span aria-hidden="true">◐</span><span>Event</span>
+      </button>
+      <button type="button" class="nav-item" data-section="winners">
+        <span aria-hidden="true">♛</span><span>Winners</span>
+      </button>
+      <button type="button" class="nav-item" data-section="announcements">
+        <span aria-hidden="true">◉</span><span>Announcements</span>
+      </button>
+      <button type="button" class="nav-item" data-section="admins">
+        <span aria-hidden="true">⌘</span><span>Admins</span>
+      </button>
+    </nav>
+
+    <div class="sidebar__user">
+      <p class="sidebar__email" id="userEmail">—</p>
+      <p class="sidebar__role" id="userRole">—</p>
+      <button id="logoutBtn" class="btn btn--ghost btn--block" type="button">Sign Out</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button id="sidebarToggle" class="topbar__toggle" type="button" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span>
+      </button>
+      <h1 class="topbar__title" id="sectionTitle">Dashboard</h1>
+      <div class="topbar__actions">
+        <span class="topbar__status" id="connStatus" aria-live="polite">
+          <span class="dot" aria-hidden="true"></span>Live
+        </span>
+      </div>
+    </header>
+
+    <section id="sectionContent" class="content" aria-live="polite"></section>
+  </main>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal__backdrop" data-close></div>
+  <div class="modal__panel" role="document">
+    <header class="modal__head">
+      <h2 class="modal__title" id="modalTitle">Edit</h2>
+      <button class="modal__close" type="button" data-close aria-label="Close">×</button>
+    </header>
+    <div class="modal__body" id="modalBody"></div>
+    <footer class="modal__foot" id="modalFoot"></footer>
+  </div>
+</div>
+
+<!-- Confirm -->
+<div id="confirm" class="modal" hidden role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal__backdrop" data-close></div>
+  <div class="modal__panel modal__panel--sm" role="document">
+    <header class="modal__head">
+      <h2 class="modal__title" id="confirmTitle">Are you sure?</h2>
+    </header>
+    <div class="modal__body">
+      <p id="confirmText" style="margin:0;color:var(--text-dim)"></p>
+    </div>
+    <footer class="modal__foot">
+      <button class="btn btn--ghost" type="button" data-close>Cancel</button>
+      <button class="btn btn--primary" type="button" id="confirmYes">Confirm</button>
+    </footer>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>
