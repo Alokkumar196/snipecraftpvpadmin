@@ -178,7 +178,7 @@
   }
   function emptyBlock(title, text) {
     return el("div", { class: "placeholder" }, [
-      el("span", { class: "placeholder__icon", "aria-hidden": "true", text: "◇" }),
+      el("span", { class: "placeholder__icon", "aria-hidden": "true", text: "\u25C7" }),
       el("h3", { class: "placeholder__title", text: title || "Nothing here yet" }),
       el("p", { class: "placeholder__text", text: text || "" })
     ]);
@@ -435,19 +435,20 @@
         ],
         onSubmit: (d) => {
           const lower = d.minecraftUsername.toLowerCase();
+          const dbKey = lower.replace(/\./g, "-");
           const newPatch = {
             minecraftUsername: d.minecraftUsername,
             minecraftUsernameLower: lower,
             discordUsername: d.discordUsername,
             status: d.status
           };
-          if (lower !== r._id) {
+          if (dbKey !== r._id) {
             newPatch.registeredAt = r.registeredAt || Date.now();
             newPatch.source = r.source || "admin";
             newPatch.enrolledBy = r.enrolledBy || "";
-            window.db.ref("registrations/" + lower).once("value").then(s => {
+            window.db.ref("registrations/" + dbKey).once("value").then(s => {
               if (s.exists()) { toast("That username is already registered.", "error"); return; }
-              window.db.ref("registrations/" + lower).set(newPatch).then(() => {
+              window.db.ref("registrations/" + dbKey).set(newPatch).then(() => {
                 window.db.ref("registrations/" + r._id).remove();
                 toast("Updated.", "success"); closeModal();
               });
@@ -476,24 +477,16 @@
         ],
         onSubmit: (d) => {
           const trimmed = (d.minecraftUsername || "").trim();
-         const lower = trimmed.toLowerCase();
-const dbKey = lower.replace(/\./g, "-");
 
-window.db.ref("registrations/" + dbKey).set({
-  minecraftUsername: trimmed,
-  minecraftUsernameLower: lower,
-  discordUsername: d.discordUsername,
-  registeredAt: firebase.database.ServerValue.TIMESTAMP,
-  status: d.status,
-  source: "admin",
-  enrolledBy: currentUser.uid
-})
+          if (!/^[A-Za-z0-9_.]{3,16}$/.test(trimmed)) {
             toast("Invalid Minecraft username.", "error");
             return;
           }
-          const lower = trimmed.toLowerCase();
 
-          window.db.ref("registrations/" + lower).set({
+          const lower = trimmed.toLowerCase();
+          const dbKey = lower.replace(/\./g, "-");
+
+          window.db.ref("registrations/" + dbKey).set({
             minecraftUsername: trimmed,
             minecraftUsernameLower: lower,
             discordUsername: d.discordUsername,
@@ -547,21 +540,21 @@ window.db.ref("registrations/" + dbKey).set({
         submitLabel: existing ? "Save" : "Create",
         values: existing || { order: 0 },
         fields: [
-  { name: "name",        label: "Name",        required: true, value: existing ? existing.name : "" },
-  { name: "role",        label: "Role",        type: "select",
-    value: existing ? existing.role : "Helper",
-    options: [
-      { value: "Owner",           label: "Owner" },
-      { value: "Moderator",       label: "Moderator" },
-      { value: "Trial Moderator", label: "Trial Moderator" },
-      { value: "Sr.Helper",       label: "Sr.Helper" },
-      { value: "Helper",          label: "Helper" }
-    ] },
-  { name: "description", label: "Description", type: "textarea", value: existing ? existing.description : "" },
-  { name: "imageUrl",    label: "Image URL",   type: "url", value: existing ? existing.imageUrl : "" },
-  { name: "discord",     label: "Discord",     value: existing ? existing.discord : "" },
-  { name: "order",       label: "Order",       type: "number", min: 0, value: existing ? existing.order : 0 }
-],
+          { name: "name",        label: "Name",        required: true, value: existing ? existing.name : "" },
+          { name: "role",        label: "Role",        type: "select",
+            value: existing ? existing.role : "Helper",
+            options: [
+              { value: "Owner",           label: "Owner" },
+              { value: "Moderator",       label: "Moderator" },
+              { value: "Trial Moderator", label: "Trial Moderator" },
+              { value: "Sr.Helper",       label: "Sr.Helper" },
+              { value: "Helper",          label: "Helper" }
+            ] },
+          { name: "description", label: "Description", type: "textarea", value: existing ? existing.description : "" },
+          { name: "imageUrl",    label: "Image URL",   type: "url", value: existing ? existing.imageUrl : "" },
+          { name: "discord",     label: "Discord",     value: existing ? existing.discord : "" },
+          { name: "order",       label: "Order",       type: "number", min: 0, value: existing ? existing.order : 0 }
+        ],
         onSubmit: (d) => {
           if (!d.name || !d.role) { toast("Name and role required.", "error"); return; }
           const key = existing ? existing._id : window.db.ref("staff").push().key;
