@@ -476,7 +476,18 @@
         ],
         onSubmit: (d) => {
           const trimmed = (d.minecraftUsername || "").trim();
-          if (!/^[A-Za-z0-9_]{3,16}$/.test(trimmed)) {
+         const lower = trimmed.toLowerCase();
+const dbKey = lower.replace(/\./g, "-");
+
+window.db.ref("registrations/" + dbKey).set({
+  minecraftUsername: trimmed,
+  minecraftUsernameLower: lower,
+  discordUsername: d.discordUsername,
+  registeredAt: firebase.database.ServerValue.TIMESTAMP,
+  status: d.status,
+  source: "admin",
+  enrolledBy: currentUser.uid
+})
             toast("Invalid Minecraft username.", "error");
             return;
           }
