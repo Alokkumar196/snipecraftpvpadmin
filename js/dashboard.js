@@ -1,5 +1,7 @@
 /* =========================================================
    SnipeCraft Admin - Dashboard & Sections
+   Mirrors safe fields to public_registrations/ for the
+   public "Registered Players" page.
    ========================================================= */
 (function () {
   "use strict";
@@ -40,6 +42,28 @@
     if (!aOk && bOk) return 1;
     return 0;
   });
+
+  /* -------- Public mirror helper --------
+     Writes the safe subset of a registration to public_registrations/{key}
+     so the user-facing "Registered Players" page can read it without exposing
+     discord, enrolledBy, or minecraftUsernameLower. */
+  function mirrorPublic(key, data) {
+    if (!window.db) return;
+    window.db.ref("public_registrations/" + key).set({
+      minecraftUsername: data.minecraftUsername || "",
+      status:            data.status || "pending",
+      registeredAt:      data.registeredAt || Date.now(),
+      source:            data.source || "public"
+    }).catch(function () { /* non-fatal */ });
+  }
+  function mirrorPublicRemove(key) {
+    if (!window.db) return;
+    window.db.ref("public_registrations/" + key).remove().catch(function () {});
+  }
+  function mirrorPublicStatus(key, status) {
+    if (!window.db) return;
+    window.db.ref("public_registrations/" + key).update({ status: status }).catch(function () {});
+  }
 
   /* -------- Toast -------- */
   let toastTimer = null;
@@ -402,7 +426,10 @@
         const del = el("button", { class: "btn btn--danger btn--sm", type: "button", text: "Delete" });
         del.addEventListener("click", () => askConfirm('Delete registration for "' + r.minecraftUsername + '"?', () => {
           window.db.ref("registrations/" + r._id).remove()
-            .then(() => toast("Deleted.", "success"))
+            .then(function () {
+              mirrorPublicRemove(r._id);
+              toast("Deleted.", "success");
+            })
             .catch(e => toast("Delete failed: " + e.message, "error"));
         }));
         acts.appendChild(del);
@@ -415,7 +442,10 @@
 
     function patch(key, p) {
       window.db.ref("registrations/" + key).update(p)
-        .then(() => toast("Updated.", "success"))
+        .then(function () {
+          if (p.status) mirrorPublicStatus(key, p.status);
+          toast("Updated.", "success");
+        })
         .catch(e => toast("Failed: " + e.message, "error"));
     }
 
@@ -448,8 +478,11 @@
             newPatch.enrolledBy = r.enrolledBy || "";
             window.db.ref("registrations/" + dbKey).once("value").then(s => {
               if (s.exists()) { toast("That username is already registered.", "error"); return; }
-              window.db.ref("registrations/" + dbKey).set(newPatch).then(() => {
+              window.db.ref("registrations/" + dbKey).set(newPatch).then(function () {
                 window.db.ref("registrations/" + r._id).remove();
+                // Rebuild public mirror under the new key, remove the old one.
+                mirrorPublic(dbKey, newPatch);
+                mirrorPublicRemove(r._id);
                 toast("Updated.", "success"); closeModal();
               });
             });
@@ -478,7 +511,7 @@
         onSubmit: (d) => {
           const trimmed = (d.minecraftUsername || "").trim();
 
-          if (!/^[A-Za-z0-9_.]{3,16}$/.test(trimmed)) {
+          if (!/^[A-Za-z0-9_.]{3,50}$/.test(trimmed)) {
             toast("Invalid Minecraft username.", "error");
             return;
           }
@@ -495,7 +528,17 @@
             source: "admin",
             enrolledBy: currentUser.uid
           })
-          .then(() => { toast("Player enrolled.", "success"); closeModal(); })
+          .then(function () {
+            // Mirror to public node
+            mirrorPublic(dbKey, {
+              minecraftUsername: trimmed,
+              status: d.status,
+              registeredAt: Date.now(),
+              source: "admin"
+            });
+            toast("Player enrolled.", "success");
+            closeModal();
+          })
           .catch((err) => {
             console.error("[Admin] enroll error:", err);
             const msg = (err && err.message ? err.message : "").toLowerCase();
